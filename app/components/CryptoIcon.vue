@@ -1,0 +1,70 @@
+<template>
+  <div class="crypto-icon" :class="sizeClass">
+    <img 
+      :src="iconPath" 
+      :alt="symbol"
+      class="w-full h-full object-contain rounded-full"
+      @error="handleImageError"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+
+const props = defineProps<{
+  symbol: string
+  size?: 'sm' | 'md' | 'lg' | 'xl'
+}>()
+
+const imageError = ref(false)
+
+const sizeClass = computed(() => {
+  const sizes = {
+    sm: 'w-6 h-6',
+    md: 'w-8 h-8',
+    lg: 'w-10 h-10',
+    xl: 'w-12 h-12'
+  }
+  return sizes[props.size || 'md']
+})
+
+const iconPath = computed(() => {
+  if (imageError.value) {
+    return '/favicon.ico' // Fallback icon
+  }
+
+  const symbol = props.symbol?.split('/')[0]?.toUpperCase() || ''
+  
+  const iconMap = {
+    'BTC': '/bitcoin.png',
+    'ETH': '/ethereum.png',
+    'SOL': '/solana.png',
+    'XRP': '/xrp.png'
+  } as const
+  
+  return iconMap[symbol as keyof typeof iconMap] || '/favicon.ico'
+})
+
+const handleImageError = () => {
+  imageError.value = true
+}
+</script>
+
+<style scoped>
+.crypto-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.crypto-icon img {
+  transition: transform 0.2s ease;
+}
+
+.crypto-icon:hover img {
+  transform: scale(1.05);
+}
+</style>
