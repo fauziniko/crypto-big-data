@@ -1,50 +1,36 @@
-# Build stage
-FROM node:20.19.0-alpine AS builder
+# Simple Dockerfile untuk Coolify
+# Optimized untuk deployment yang cepat dan reliable
+
+FROM node:20-alpine
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apk add --no-cache python3 make g++
+# Install curl untuk health check
+RUN apk add --no-cache curl
 
 # Copy package files
 COPY package*.json ./
-COPY .npmrc ./
 
-# Install dependencies
-RUN npm ci --legacy-peer-deps
+# Install dependencies dengan production flag
+RUN npm ci --omit=dev --legacy-peer-deps
 
-# Copy application files
+# Copy seluruh aplikasi
 COPY . .
 
-# Build application
+# Build aplikasi
 RUN npm run build
 
-# Production stage
-FROM node:20.19.0-alpine
-
-WORKDIR /app
-
-# Copy built application from builder
-COPY --from=builder /app/.output /app/.output
-COPY --from=builder /app/package*.json /app/
-COPY start.sh /app/
-
-# Make start script executable
-RUN chmod +x /app/start.sh
-
-# Set environment to production
+# Environment variables
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
-ENV NITRO_HOST=0.0.0.0
-ENV NITRO_PORT=3000
 
-# Add health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:3000/api/health || exit 1
 
 # Expose port
 EXPOSE 3000
 
-# Start application with startup script
-CMD ["/app/start.sh"]
+# Start
+CMD ["node", ".output/server/index.mjs"]
