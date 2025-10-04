@@ -5,6 +5,23 @@
 
     <!-- Main Content -->
     <main class="container mx-auto px-6 py-8 max-w-7xl">
+      <!-- Error Alert -->
+      <div v-if="hasError" class="mb-6 p-4 bg-danger/10 border border-danger/20 rounded-xl animate-fade-in">
+        <div class="flex items-center gap-3">
+          <svg class="w-5 h-5 text-danger flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <div class="flex-1">
+            <p class="text-danger font-semibold">{{ errorMessage }}</p>
+          </div>
+          <button @click="hasError = false" class="text-danger hover:text-danger/80 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
       <!-- Page Title & Description -->
       <div class="mb-8 animate-fade-in">
         <div class="flex items-center justify-between mb-4">
@@ -38,15 +55,32 @@
         <div class="flex items-center justify-between mb-6">
           <h2 class="text-lg font-display font-bold text-text-primary">Select Cryptocurrency</h2>
           <div class="text-sm text-text-tertiary">
-            <span class="inline-flex items-center gap-2 px-3 py-1.5 bg-success/10 rounded-lg">
-              <div class="w-2 h-2 bg-success rounded-full animate-pulse"></div>
-              <span class="font-semibold text-success">Live Streaming</span>
+            <span 
+              class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg"
+              :class="isStreamActive ? 'bg-success/10' : 'bg-text-muted/10'"
+            >
+              <div 
+                class="w-2 h-2 rounded-full"
+                :class="isStreamActive ? 'bg-success animate-pulse' : 'bg-text-muted'"
+              ></div>
+              <span 
+                class="font-semibold"
+                :class="isStreamActive ? 'text-success' : 'text-text-muted'"
+              >
+                {{ isStreamActive ? 'Live Streaming' : 'Stream Inactive' }}
+              </span>
             </span>
           </div>
         </div>
 
+        <!-- Loading State -->
+        <div v-if="isLoading && assets.length === 0" class="text-center py-12">
+          <div class="inline-block w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p class="text-text-tertiary">Loading cryptocurrencies...</p>
+        </div>
+
         <!-- Crypto Cards Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <button
             v-for="asset in assets"
             :key="asset.symbol"
@@ -246,12 +280,24 @@ import {
   formatTimeAgo
 } from '~/utils/formatters'
 
-const { assets, lastUpdate } = useCryptoData()
+// Use crypto data composable with error handling
+const { 
+  assets, 
+  lastUpdate, 
+  initialize, 
+  startAutoRefresh, 
+  stopAutoRefresh,
+  isLoading 
+} = useCryptoData()
 
 const selectedCrypto = ref<string>('')
 const streamData = ref<any[]>([])
 const isRefreshing = ref(false)
 const previousPrices = ref<Map<number, number>>(new Map())
+const streamInterval = ref<ReturnType<typeof setInterval> | null>(null)
+const isStreamActive = ref(false)
+const hasError = ref(false)
+const errorMessage = ref('')
 
 // Computed
 const selectedAsset = computed(() => {
@@ -265,8 +311,27 @@ const timeAgo = computed(() => {
 
 // Methods
 const selectCrypto = (symbol: string) => {
-  selectedCrypto.value = symbol
-  generateStreamData()
+  try {
+    hasError.value = false
+    selectedCrypto.value = symbol
+    
+    // Clear existing stream data
+    streamData.value = []
+    previousPrices.value.clear()
+    
+    // Stop existing stream
+    stopStream()
+    
+    // Generate initial data
+    generateStreamData()
+    
+    // Start new stream
+    startStream()
+  } catch (error) {
+    console.error('Error selecting crypto:', error)
+    hasError.value = true
+    errorMessage.value = 'Failed to load cryptocurrency data'
+  }
 }
 
 const getDecimals = (symbol: string) => {
@@ -276,28 +341,96 @@ const getDecimals = (symbol: string) => {
 const generateStreamData = () => {
   if (!selectedAsset.value) return
 
-  const data = []
-  const basePrice = selectedAsset.value.price
-  const now = Date.now()
+  try {
+    const data = []
+    const basePrice = selectedAsset.value.price
+    const now = Date.now()
 
-  // Generate 20 data points (simulated historical data)
-  for (let i = 19; i >= 0; i--) {
-    const timestamp = now - (i * 5000) // Every 5 seconds
-    const randomChange = (Math.random() - 0.5) * 4 // -2% to +2%
-    const price = basePrice * (1 + randomChange / 100)
-    const volume = selectedAsset.value.volume24h * (0.8 + Math.random() * 0.4)
-    const marketCap = price * 19000000 // Simplified market cap calculation
+    // Generate 20 data points (simulated historical data)
+    for (let i = 19; i >= 0; i--) {
+      const timestamp = now - (i * 5000) // Every 5 seconds
+      const randomChange = (Math.random() - 0.5) * 4 // -2% to +2%
+      const price = basePrice * (1 + randomChange / 100)
+      const volume = selectedAsset.value.volume24h * (0.8 + Math.random() * 0.4)
+      const marketCap = price * 19000000 // Simplified market cap calculation
 
-    data.push({
-      timestamp,
-      price,
-      change: randomChange,
-      volume,
-      marketCap
-    })
+      data.push({
+        timestamp,
+        price,
+        change: randomChange,
+        volume,
+        marketCap
+      })
+    }
+
+    streamData.value = data
+  } catch (error) {
+    console.error('Error generating stream data:', error)
+    hasError.value = true
+    errorMessage.value = 'Failed to generate stream data'
+  }
+}
+
+const addNewStreamData = () => {
+  if (!selectedCrypto.value || !selectedAsset.value) return
+
+  try {
+    const now = Date.now()
+    const lastPrice = streamData.value.length > 0 
+      ? streamData.value[streamData.value.length - 1].price 
+      : selectedAsset.value.price
+    
+    // Generate realistic price movement
+    const priceVariation = (Math.random() - 0.5) * (lastPrice * 0.003) // ±0.3% variation
+    const newPrice = lastPrice + priceVariation
+    const change = ((newPrice - selectedAsset.value.price) / selectedAsset.value.price) * 100
+    
+    const newData = {
+      timestamp: now,
+      price: newPrice,
+      change: change,
+      volume: selectedAsset.value.volume24h * (0.8 + Math.random() * 0.4),
+      marketCap: newPrice * 19000000
+    }
+    
+    streamData.value.push(newData)
+    
+    // Keep only last 20 items to prevent memory issues
+    if (streamData.value.length > 20) {
+      streamData.value.shift()
+      // Clean up old price references
+      const oldTimestamps = Array.from(previousPrices.value.keys())
+        .filter(ts => ts < streamData.value[0].timestamp)
+      oldTimestamps.forEach(ts => previousPrices.value.delete(ts))
+    }
+  } catch (error) {
+    console.error('Error adding stream data:', error)
+  }
+}
+
+const startStream = () => {
+  if (isStreamActive.value || streamInterval.value) {
+    console.warn('Stream already active')
+    return
   }
 
-  streamData.value = data
+  console.log('🎬 Starting data stream...')
+  isStreamActive.value = true
+  
+  streamInterval.value = setInterval(() => {
+    if (selectedCrypto.value && selectedAsset.value) {
+      addNewStreamData()
+    }
+  }, 5000) // Update every 5 seconds
+}
+
+const stopStream = () => {
+  if (streamInterval.value) {
+    console.log('⏹️ Stopping data stream...')
+    clearInterval(streamInterval.value)
+    streamInterval.value = null
+    isStreamActive.value = false
+  }
 }
 
 const formatTime = (timestamp: number) => {
@@ -336,77 +469,73 @@ const getRowFlashClass = (data: any) => {
   return ''
 }
 
-const refreshData = () => {
-  isRefreshing.value = true
-  generateStreamData()
-  setTimeout(() => {
-    isRefreshing.value = false
-  }, 500)
+const refreshData = async () => {
+  try {
+    isRefreshing.value = true
+    hasError.value = false
+    
+    if (selectedCrypto.value) {
+      generateStreamData()
+    }
+  } catch (error) {
+    console.error('Error refreshing data:', error)
+    hasError.value = true
+    errorMessage.value = 'Failed to refresh data'
+  } finally {
+    setTimeout(() => {
+      isRefreshing.value = false
+    }, 500)
+  }
 }
 
 const exportStreamData = () => {
-  const { exportToCSV } = useDataExport()
-  const csvData = streamData.value.map(d => ({
-    timestamp: new Date(d.timestamp).toISOString(),
-    price: d.price,
-    change: d.change,
-    volume: d.volume,
-    marketCap: d.marketCap
-  }))
-  
-  exportToCSV(
-    csvData,
-    `${selectedCrypto.value.replace('/', '-')}-stream-${Date.now()}.csv`
-  )
+  try {
+    const { exportToCSV } = useDataExport()
+    const csvData = streamData.value.map(d => ({
+      timestamp: new Date(d.timestamp).toISOString(),
+      price: d.price,
+      change: d.change,
+      volume: d.volume,
+      marketCap: d.marketCap
+    }))
+    
+    exportToCSV(
+      csvData,
+      `${selectedCrypto.value.replace('/', '-')}-stream-${Date.now()}.csv`
+    )
+  } catch (error) {
+    console.error('Error exporting data:', error)
+    hasError.value = true
+    errorMessage.value = 'Failed to export data'
+  }
 }
 
-// Watch for asset changes
-watch(() => selectedAsset.value?.price, () => {
-  if (selectedCrypto.value && streamData.value.length > 0) {
-    // Update the latest data point
-    const now = Date.now()
-    const newData = {
-      timestamp: now,
-      price: selectedAsset.value?.price || 0,
-      change: selectedAsset.value?.change24h || 0,
-      volume: selectedAsset.value?.volume24h || 0,
-      marketCap: (selectedAsset.value?.price || 0) * 19000000
+// Lifecycle hooks
+onMounted(async () => {
+  try {
+    // Initialize data if not already loaded
+    if (assets.value.length === 0) {
+      await initialize()
     }
     
-    streamData.value.push(newData)
-    // Keep only last 20 items
-    if (streamData.value.length > 20) {
-      streamData.value.shift()
-    }
+    // Start auto-refresh for asset data (every 30 seconds)
+    startAutoRefresh(30)
+  } catch (error) {
+    console.error('Error initializing stream page:', error)
+    hasError.value = true
+    errorMessage.value = 'Failed to initialize data stream'
   }
 })
 
-// Auto-refresh every 5 seconds
-onMounted(() => {
-  const interval = setInterval(() => {
-    if (selectedCrypto.value) {
-      // Simulate new data point
-      const asset = selectedAsset.value
-      if (asset) {
-        const now = Date.now()
-        const newData = {
-          timestamp: now,
-          price: asset.price,
-          change: asset.change24h,
-          volume: asset.volume24h,
-          marketCap: asset.price * 19000000
-        }
-        
-        streamData.value.push(newData)
-        if (streamData.value.length > 20) {
-          streamData.value.shift()
-        }
-      }
-    }
-  }, 5000)
-
-  onBeforeUnmount(() => {
-    clearInterval(interval)
-  })
+onBeforeUnmount(() => {
+  // Clean up intervals
+  stopStream()
+  stopAutoRefresh()
+  
+  // Clear data to free memory
+  streamData.value = []
+  previousPrices.value.clear()
+  
+  console.log('✅ Stream page cleanup complete')
 })
 </script>

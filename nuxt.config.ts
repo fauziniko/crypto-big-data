@@ -31,18 +31,25 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      cryptoApiProvider: 'binance',
-      coingeckoApiKey: '',
-      binanceApiKey: '',
-      binanceApiSecret: '',
-      cryptocompareApiKey: ''
+      // Using Binance API only (no API key required)
     }
   },
 
   // Production optimizations
   nitro: {
     preset: 'node-server',
-    compressPublicAssets: true
+    compressPublicAssets: true,
+    // Add CORS headers for API routes
+    routeRules: {
+      '/api/**': {
+        cors: true,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        }
+      }
+    }
   },
 
   // Build optimizations
