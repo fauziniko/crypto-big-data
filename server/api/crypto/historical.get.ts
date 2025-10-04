@@ -1,3 +1,5 @@
+import https from 'https'
+
 interface CandleData {
   timestamp: number
   open: number
@@ -9,6 +11,9 @@ interface CandleData {
 
 type BinanceKline = [number, string, string, string, string, string]
 
+// Set environment variable to bypass SSL verification (development only)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+
 export default defineEventHandler(async (event): Promise<CandleData[]> => {
   try {
     const query = getQuery(event)
@@ -17,13 +22,24 @@ export default defineEventHandler(async (event): Promise<CandleData[]> => {
     const limit = parseInt((query.limit as string) || '60')
     
     // Fetch from Binance API only
-    const data: BinanceKline[] = await $fetch<BinanceKline[]>(
+    const data = await $fetch(
       `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`,
       {
         retry: 2,
         timeout: 10000,
       }
     )
+    
+    // Check if data is an array
+    if (!Array.isArray(data)) {
+      console.error('Binance API returned non-array data:', data)
+      throw new Error('Invalid response format from Binance API')
+    }
+    
+    // Validate data structure
+    if (data.length === 0) {
+      return []
+    }
     
     return data.map((candle: BinanceKline): CandleData => ({
       timestamp: candle[0],

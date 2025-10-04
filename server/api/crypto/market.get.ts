@@ -1,3 +1,5 @@
+import https from 'https'
+
 interface BinanceTickerResponse {
   lastPrice: string
   quoteVolume: string
@@ -17,13 +19,16 @@ interface CryptoAsset {
   lastUpdate: Date
 }
 
+// Set environment variable to bypass SSL verification (development only)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+
 export default defineEventHandler(async (event): Promise<CryptoAsset[]> => {
   try {
     // Fetch from Binance API only
     const symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT']
     
     const promises: Promise<CryptoAsset>[] = symbols.map(async (symbol): Promise<CryptoAsset> => {
-      const tickerResponse: BinanceTickerResponse = await $fetch<BinanceTickerResponse>(
+      const tickerResponse = await $fetch(
         `https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`,
         {
           retry: 2,
@@ -31,14 +36,21 @@ export default defineEventHandler(async (event): Promise<CryptoAsset[]> => {
         }
       )
       
+      // Validate response structure
+      if (!tickerResponse || typeof tickerResponse !== 'object') {
+        throw new Error(`Invalid response for ${symbol}`)
+      }
+      
+      const ticker = tickerResponse as BinanceTickerResponse
+      
       return {
         symbol: symbol.replace('USDT', '/USD'),
         name: getNameFromSymbol(symbol),
-        price: parseFloat(tickerResponse.lastPrice),
-        volume24h: parseFloat(tickerResponse.quoteVolume),
-        change24h: parseFloat(tickerResponse.priceChangePercent),
-        high24h: parseFloat(tickerResponse.highPrice),
-        low24h: parseFloat(tickerResponse.lowPrice),
+        price: parseFloat(ticker.lastPrice),
+        volume24h: parseFloat(ticker.quoteVolume),
+        change24h: parseFloat(ticker.priceChangePercent),
+        high24h: parseFloat(ticker.highPrice),
+        low24h: parseFloat(ticker.lowPrice),
         lastUpdate: new Date()
       }
     })
