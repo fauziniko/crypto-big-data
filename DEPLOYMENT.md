@@ -25,24 +25,30 @@ NUXT_PUBLIC_CRYPTOCOMPARE_API_KEY=
 The following files are already configured:
 
 - ✅ `.node-version` - Specifies Node.js 20.19.0
-- ✅ `nixpacks.toml` - Build configuration for Nixpacks
+- ✅ `Dockerfile` - Multi-stage Docker build configuration
+- ✅ `.dockerignore` - Docker build optimization
 - ✅ `.npmrc` - NPM configuration
-- ✅ `Dockerfile` - Alternative Docker build (optional)
 - ✅ `package.json` - Engine requirements added
 
 ### 3. Deploy
 
-#### Option A: Using Nixpacks (Recommended)
-1. Push code to GitHub
-2. Coolify will automatically detect `nixpacks.toml`
-3. Build will use Node.js 20.x
-4. Application will start on port 3000
+1. Push code to GitHub:
+   ```bash
+   git add .
+   git commit -m "Add deployment configuration"
+   git push origin main
+   ```
 
-#### Option B: Using Dockerfile
-1. In Coolify Dashboard → Settings
-2. Select "Use Dockerfile"
-3. Build will use custom Dockerfile
-4. Application will start on port 3000
+2. In Coolify Dashboard:
+   - Go to your application settings
+   - Build method will auto-detect Dockerfile
+   - Or manually select "Use Dockerfile"
+   
+3. Add environment variables (see step 1)
+
+4. Click "Deploy" or wait for auto-deployment
+
+5. Application will start on port 3000
 
 ### 4. Verify Deployment
 
@@ -55,13 +61,19 @@ Check the following:
 ## Troubleshooting
 
 ### Issue: Node.js version error
-**Solution**: Ensure `.node-version` file exists with `20.19.0`
+**Solution**: Dockerfile uses Node.js 20.19.0-alpine (fixed version)
 
 ### Issue: Native binding error (oxc-parser)
-**Solution**: Use `nixpacks.toml` with `--legacy-peer-deps` flag
+**Solution**: Multi-stage Dockerfile with build dependencies handles this
 
 ### Issue: Build cache issues
 **Solution**: Clear build cache in Coolify → Settings → Build Cache
+
+### Issue: Dockerfile not detected
+**Solution**: 
+1. Ensure `Dockerfile` is in repository root
+2. In Coolify: Settings → Build Pack → Select "Dockerfile"
+3. Redeploy
 
 ### Issue: Environment variables not loading
 **Solution**: 
@@ -111,9 +123,9 @@ If deployment fails:
 
 ```
 .node-version          # Node.js version specification
-nixpacks.toml         # Nixpacks build configuration
+Dockerfile            # Multi-stage Docker build configuration
+.dockerignore         # Docker build optimization
 .npmrc                # NPM configuration
-Dockerfile            # Alternative Docker build
 package.json          # Dependencies & engine requirements
 nuxt.config.ts        # Nuxt production configuration
 .env.example          # Environment variables template
