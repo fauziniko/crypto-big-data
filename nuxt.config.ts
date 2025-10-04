@@ -31,10 +31,34 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      cryptoApiProvider: '',
+      cryptoApiProvider: 'binance',
       coingeckoApiKey: '',
       binanceApiKey: '',
+      binanceApiSecret: '',
       cryptocompareApiKey: ''
+    }
+  },
+
+  // Production optimizations
+  nitro: {
+    preset: 'node-server',
+    compressPublicAssets: true
+  },
+
+  // Build optimizations
+  experimental: {
+    payloadExtraction: false
+  },
+
+  vite: {
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'apexcharts': ['apexcharts', 'vue3-apexcharts']
+          }
+        }
+      }
     }
   }
 })
