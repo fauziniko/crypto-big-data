@@ -26,7 +26,7 @@ export default defineNuxtConfig({
 
   typescript: {
     strict: true,
-    typeCheck: process.env.NODE_ENV === 'development'
+    typeCheck: true
   },
 
   runtimeConfig: {
@@ -37,7 +37,7 @@ export default defineNuxtConfig({
 
   // Production optimizations
   nitro: {
-    preset: 'cloudflare-pages',
+    preset: 'node-server',
     compressPublicAssets: true,
     // Add CORS headers for API routes
     routeRules: {
