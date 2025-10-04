@@ -27,14 +27,24 @@ WORKDIR /app
 # Copy built application from builder
 COPY --from=builder /app/.output /app/.output
 COPY --from=builder /app/package*.json /app/
+COPY start.sh /app/
+
+# Make start script executable
+RUN chmod +x /app/start.sh
 
 # Set environment to production
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
+ENV NITRO_HOST=0.0.0.0
+ENV NITRO_PORT=3000
+
+# Add health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Expose port
 EXPOSE 3000
 
-# Start application
-CMD ["node", ".output/server/index.mjs"]
+# Start application with startup script
+CMD ["/app/start.sh"]
