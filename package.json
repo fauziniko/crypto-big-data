@@ -9,7 +9,8 @@
   "scripts": {
     "build": "nuxt build",
     "start": "nuxt start",
-    "dev": "nuxt dev"
+    "dev": "nuxt dev",
+    "generate": "nuxt generate"
   },
   "dependencies": {
     "@nuxtjs/tailwindcss": "^6.14.0",

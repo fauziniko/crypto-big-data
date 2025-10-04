@@ -37,7 +37,7 @@ export default defineNuxtConfig({
 
   // Production optimizations
   nitro: {
-    preset: 'node-server',
+    preset: 'cloudflare-pages',
     compressPublicAssets: true,
     // Add CORS headers for API routes
     routeRules: {
