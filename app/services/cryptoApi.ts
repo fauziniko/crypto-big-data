@@ -30,6 +30,8 @@ class ProxyApiService {
       
       if (options?.interval) params.interval = options.interval
       if (options?.limit) params.limit = options.limit.toString()
+      if (options?.startTime) params.startTime = options.startTime.toString()
+      if (options?.endTime) params.endTime = options.endTime.toString()
       
       const queryString = new URLSearchParams(params).toString()
       const url = queryString ? `/api/crypto/historical?${queryString}` : '/api/crypto/historical'

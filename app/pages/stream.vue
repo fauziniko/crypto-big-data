@@ -131,26 +131,67 @@
         </div>
       </div>
 
-      <!-- Data Stream Table -->
-      <div v-if="selectedCrypto" class="card animate-fade-in">
-        <div class="flex items-center justify-between mb-6">
-          <div>
-            <h2 class="text-xl font-display font-bold text-text-primary mb-1">
-              {{ selectedAsset?.name }} Live Data Stream
-            </h2>
-            <p class="text-sm text-text-tertiary">
-              Real-time market data updates • Last update: {{ timeAgo }}
-            </p>
+      <!-- Data Stream Section -->
+      <div v-if="selectedCrypto" class="animate-fade-in">
+        <!-- Tab Navigation -->
+        <div class="card mb-6">
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <h2 class="text-xl font-display font-bold text-text-primary mb-1">
+                {{ selectedAsset?.name }} Data
+              </h2>
+              <p class="text-sm text-text-tertiary">
+                View live stream or historical data • Last update: {{ timeAgo }}
+              </p>
+            </div>
           </div>
-          
-          <!-- Export Button -->
-          <button @click="exportStreamData" class="btn-primary">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-            </svg>
-            Export Data
-          </button>
+
+          <!-- Tabs -->
+          <div class="flex gap-2 border-b border-finance-border">
+            <button
+              @click="activeTab = 'live'"
+              class="px-6 py-3 font-medium transition-colors relative"
+              :class="activeTab === 'live' 
+                ? 'text-primary' 
+                : 'text-text-tertiary hover:text-text-secondary'"
+            >
+              Live Stream
+              <div
+                v-if="activeTab === 'live'"
+                class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
+              ></div>
+            </button>
+            <button
+              @click="activeTab = 'historical'"
+              class="px-6 py-3 font-medium transition-colors relative"
+              :class="activeTab === 'historical' 
+                ? 'text-primary' 
+                : 'text-text-tertiary hover:text-text-secondary'"
+            >
+              Historical Data
+              <div
+                v-if="activeTab === 'historical'"
+                class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
+              ></div>
+            </button>
+          </div>
         </div>
+
+        <!-- Live Stream Tab -->
+        <div v-show="activeTab === 'live'" class="card">
+          <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-display font-bold text-text-primary">
+              Live Data Stream
+            </h3>
+            
+            <!-- Export Button -->
+            <button @click="exportStreamData" class="btn-primary">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+              </svg>
+              Export Data
+            </button>
+          </div>
 
         <!-- Live Stats Cards -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -246,15 +287,73 @@
           </table>
         </div>
 
-        <!-- Pagination Info -->
-        <div class="mt-6 flex items-center justify-between text-sm text-text-tertiary border-t border-finance-border pt-4">
-          <div>
-            Showing <span class="font-semibold text-text-secondary">{{ streamData.length }}</span> real-time data points
+          <!-- Pagination Info -->
+          <div class="mt-6 flex items-center justify-between text-sm text-text-tertiary border-t border-finance-border pt-4">
+            <div>
+              Showing <span class="font-semibold text-text-secondary">{{ streamData.length }}</span> real-time data points
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-2 h-2 bg-success rounded-full animate-pulse"></div>
+              <span>Auto-updating every 5 seconds</span>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <div class="w-2 h-2 bg-success rounded-full animate-pulse"></div>
-            <span>Auto-updating every 5 seconds</span>
+        </div>
+
+        <!-- Historical Data Tab -->
+        <div v-show="activeTab === 'historical'" class="space-y-6">
+          <!-- Date Range Picker -->
+          <div class="card">
+            <h3 class="text-lg font-display font-bold text-text-primary mb-4">
+              Select Date Range
+            </h3>
+            <DateRangePicker
+              v-model:startDate="historicalStartDate"
+              v-model:endDate="historicalEndDate"
+              v-model:interval="historicalInterval"
+              @change="onDateRangeChange"
+            />
+            <div class="mt-4 flex gap-3">
+              <button
+                @click="loadHistoricalData"
+                class="btn-primary"
+                :disabled="isLoadingHistorical"
+              >
+                <svg 
+                  v-if="!isLoadingHistorical"
+                  class="w-4 h-4" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                <div v-else class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                {{ isLoadingHistorical ? 'Loading...' : 'Load Data' }}
+              </button>
+              <button
+                v-if="historicalData.length > 0"
+                @click="clearHistoricalData"
+                class="btn-secondary"
+              >
+                Clear Data
+              </button>
+            </div>
           </div>
+
+          <!-- Historical Chart -->
+          <HistoricalChart
+            v-if="historicalData.length > 0"
+            :data="historicalData"
+            :symbol="selectedCrypto"
+          />
+
+          <!-- Historical Data Table -->
+          <HistoricalDataTable
+            :data="historicalData"
+            :loading="isLoadingHistorical"
+            :error="historicalError"
+            :symbol="selectedCrypto"
+          />
         </div>
       </div>
 
@@ -264,7 +363,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
         </svg>
         <h3 class="text-xl font-display font-bold text-text-primary mb-2">Select a Cryptocurrency</h3>
-        <p class="text-text-tertiary">Choose a crypto from the cards above to view its live data stream</p>
+        <p class="text-text-tertiary">Choose a crypto from the cards above to view its live data stream or historical data</p>
       </div>
     </main>
   </div>
@@ -290,6 +389,15 @@ const {
   isLoading 
 } = useCryptoData()
 
+// Use historical data composable
+const {
+  data: historicalData,
+  isLoading: isLoadingHistorical,
+  error: historicalError,
+  fetchHistoricalData,
+  clearData: clearHistoricalData
+} = useHistoricalData()
+
 const selectedCrypto = ref<string>('')
 const streamData = ref<any[]>([])
 const isRefreshing = ref(false)
@@ -298,6 +406,14 @@ const streamInterval = ref<ReturnType<typeof setInterval> | null>(null)
 const isStreamActive = ref(false)
 const hasError = ref(false)
 const errorMessage = ref('')
+
+// Tab state
+const activeTab = ref<'live' | 'historical'>('live')
+
+// Historical data filters
+const historicalStartDate = ref<string>('')
+const historicalEndDate = ref<string>('')
+const historicalInterval = ref<string>('5m')
 
 // Computed
 const selectedAsset = computed(() => {
@@ -467,6 +583,35 @@ const getRowFlashClass = (data: any) => {
   }
   
   return ''
+}
+
+// Historical data methods
+const loadHistoricalData = async () => {
+  if (!selectedCrypto.value || !historicalStartDate.value || !historicalEndDate.value) {
+    hasError.value = true
+    errorMessage.value = 'Please select a date range'
+    return
+  }
+
+  try {
+    hasError.value = false
+    await fetchHistoricalData(
+      selectedCrypto.value,
+      historicalStartDate.value,
+      historicalEndDate.value,
+      historicalInterval.value
+    )
+  } catch (error: any) {
+    console.error('Error loading historical data:', error)
+    hasError.value = true
+    errorMessage.value = error.message || 'Failed to load historical data'
+  }
+}
+
+const onDateRangeChange = (values: any) => {
+  historicalStartDate.value = values.startDate
+  historicalEndDate.value = values.endDate
+  historicalInterval.value = values.interval
 }
 
 const refreshData = async () => {

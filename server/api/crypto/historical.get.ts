@@ -20,15 +20,19 @@ export default defineEventHandler(async (event): Promise<CandleData[]> => {
     const symbol = (query.symbol as string) || 'BTCUSDT'
     const interval = (query.interval as string) || '5m'
     const limit = parseInt((query.limit as string) || '60')
+    const startTime = query.startTime ? parseInt(query.startTime as string) : undefined
+    const endTime = query.endTime ? parseInt(query.endTime as string) : undefined
+    
+    // Build URL with parameters
+    let url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`
+    if (startTime) url += `&startTime=${startTime}`
+    if (endTime) url += `&endTime=${endTime}`
     
     // Fetch from Binance API only
-    const data = await $fetch(
-      `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`,
-      {
-        retry: 2,
-        timeout: 10000,
-      }
-    )
+    const data = await $fetch(url, {
+      retry: 2,
+      timeout: 10000,
+    })
     
     // Check if data is an array
     if (!Array.isArray(data)) {
