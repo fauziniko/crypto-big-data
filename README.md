@@ -158,4 +158,4 @@ Contributions, issues, and feature requests are welcome!
 
 ---
 
-Built with ❤️ using Nuxt 3 and Binance API
+Built with ❤️ using Nuxt 3 and Binance API# crypto-big-data
